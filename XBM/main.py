@@ -94,7 +94,7 @@ def main(args):
                 embed = model(imgs)
                 if args.is_normalize:
                     embed = F.normalize(embed)
-                if epoch > 5:
+                if epoch > args.warmup_epochs:
                     xbm.update(embed, labels)
                     memory_embeddings, memory_labels = xbm.get()
                     memory_embeddings, memory_labels = memory_embeddings.to(args.device), memory_labels.to(args.device)
