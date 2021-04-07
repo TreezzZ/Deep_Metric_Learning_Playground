@@ -1,16 +1,17 @@
 import os
 import random
 from argparse import ArgumentParser
+import time
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import wandb
+#import #wandb
 from loguru import logger
 from torch.cuda.amp import GradScaler, autocast
-from torchvision.models import resnet50
 from tqdm import tqdm
+from model import get_model
 
 from criterion import MultiSimilarityLoss
 from dataset import get_dataloader
@@ -28,7 +29,7 @@ def main(args):
     torch.backends.cudnn.deterministic = True
 
     # Get logger
-    wandb.init(config=args, project="Multi-Similarity", dir=args.work_dir)
+    #wandb.init(config=args, project="Multi-Similarity", dir=args.work_dir)
     params = []
     for k, v in vars(args).items():
             params.append(f"{k}: {v}")
@@ -39,26 +40,22 @@ def main(args):
         args.data_dir, 
         args.img_per_class,
         args.batch_size, 
+        args.test_batch_size,
         args.num_workers,
         args,
     )
 
     # Get model
-    model = resnet50(pretrained=True)
-    model.fc = nn.Linear(model.fc.in_features, args.embed_dim)
-    if args.is_frozen:
-        for module in filter(lambda m: type(m) == nn.BatchNorm2d, model.modules()):
-            module.eval()
-            module.train = lambda _: None
+    model = get_model(args.arch, args.embed_dim, args.is_frozen)
     model.train()
     model.to(args.device)
-    wandb.watch(model)
+    #wandb.watch(model)
 
     # Get optimizer and learning rate scheduler
     optimizer = torch.optim.Adam(
         model.parameters(), 
         lr=args.lr,
-        weight_decay=4e-4,
+        weight_decay=args.weight_decay,
     )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer,
@@ -80,10 +77,12 @@ def main(args):
     # Start loop
     running_loss = 0.
     cur_iter = 0
+    start_time = time.time()
     for epoch in range(1, args.max_epochs+1):
         # Training
         model.train()
-        for data in tqdm(train_dataloader, desc="Training"):
+        
+        for data in train_dataloader:
             imgs = data["data"]
             labels = data["label"]
             cur_iter += 1
@@ -102,7 +101,8 @@ def main(args):
             running_loss += loss.item()
 
             if cur_iter % args.log_step == 0:
-                wandb.log({'train_loss': running_loss / args.log_step})
+                logger.info("Epoch: {} Step: {} loss: {:.2f} time: {:.2f}".format(epoch, cur_iter, running_loss / args.log_step, time.time()-start_time))
+                #wandb.log({'train_loss': running_loss / args.log_step})
                 running_loss = 0.
         scheduler.step()
     
@@ -136,7 +136,7 @@ def main(args):
                     recall_at_k = calc_recall(pred, gt, k)
                     recall.append(recall_at_k)
                     logger.info("R@{} : {:.3f}".format(k, 100 * recall_at_k))
-                    wandb.log({f'R@{k}': 100*recall_at_k})
+                    #wandb.log({f'R@{k}': 100*recall_at_k})
                 if best_recall[0] < recall[0]:
                     best_recall = recall
     return best_recall
@@ -157,10 +157,12 @@ if __name__ == '__main__':
 
     parser.add_argument('--arch', type=str, required=True)
     parser.add_argument('--batch_size', type=int, default=256)
+    parser.add_argument('--test_batch_size', type=int, default=256)
     parser.add_argument('--img_per_class', type=int, default=2)
     parser.add_argument('--max_epochs', type=int, default=90)
     parser.add_argument('--embed_dim', type=int, required=True)
     parser.add_argument('--lr', type=float, required=True)
+    parser.add_argument('--weight_decay', type=float, required=True)
     parser.add_argument('--alpha', type=float, required=True)
     parser.add_argument('--beta', type=float, required=True)
     parser.add_argument('--lamda', type=float, required=True)
@@ -170,4 +172,4 @@ if __name__ == '__main__':
     args.device = torch.device("cuda", args.gpu)
     os.makedirs(args.work_dir, exist_ok=True)
     recall = main(args)
-    wandb.run.summary["best_recall_1"] = recall[0]
+    #wandb.run.summary["best_recall_1"] = recall[0]

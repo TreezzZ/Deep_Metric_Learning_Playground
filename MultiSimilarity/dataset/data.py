@@ -6,7 +6,7 @@ from PIL import Image
 from .spc_sampler import SPC_Sampler
 
 
-def get_dataloader(data_dir, img_per_class, batch_size, num_workers, args):
+def get_dataloader(data_dir, img_per_class, batch_size, test_batch_size, num_workers, args):
     # get dataset
     train_dataset = MetricLearningDataset(
         osp.join(data_dir, "train.txt"),
@@ -27,7 +27,7 @@ def get_dataloader(data_dir, img_per_class, batch_size, num_workers, args):
 
     test_dataloader = DataLoader(
         test_dataset,
-        batch_size=batch_size,
+        batch_size=test_batch_size,
         shuffle=False,
         num_workers=num_workers,
         pin_memory=True,
