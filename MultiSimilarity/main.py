@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-#import #wandb
+import wandb
 from loguru import logger
 from torch.cuda.amp import GradScaler, autocast
 from tqdm import tqdm
@@ -29,7 +29,7 @@ def main(args):
     torch.backends.cudnn.deterministic = True
 
     # Get logger
-    #wandb.init(config=args, project="Multi-Similarity", dir=args.work_dir)
+    wandb.init(config=args, project="Multi-Similarity", dir=args.work_dir)
     params = []
     for k, v in vars(args).items():
             params.append(f"{k}: {v}")
@@ -49,7 +49,7 @@ def main(args):
     model = get_model(args.arch, args.embed_dim, args.is_frozen)
     model.train()
     model.to(args.device)
-    #wandb.watch(model)
+    wandb.watch(model)
 
     # Get optimizer and learning rate scheduler
     optimizer = torch.optim.Adam(
@@ -102,7 +102,7 @@ def main(args):
 
             if cur_iter % args.log_step == 0:
                 logger.info("Epoch: {} Step: {} loss: {:.2f} time: {:.2f}".format(epoch, cur_iter, running_loss / args.log_step, time.time()-start_time))
-                #wandb.log({'train_loss': running_loss / args.log_step})
+                wandb.log({'train_loss': running_loss / args.log_step})
                 running_loss = 0.
         scheduler.step()
     
@@ -136,7 +136,7 @@ def main(args):
                     recall_at_k = calc_recall(pred, gt, k)
                     recall.append(recall_at_k)
                     logger.info("R@{} : {:.3f}".format(k, 100 * recall_at_k))
-                    #wandb.log({f'R@{k}': 100*recall_at_k})
+                    wandb.log({f'R@{k}': 100*recall_at_k})
                 if best_recall[0] < recall[0]:
                     best_recall = recall
     return best_recall
@@ -172,4 +172,4 @@ if __name__ == '__main__':
     args.device = torch.device("cuda", args.gpu)
     os.makedirs(args.work_dir, exist_ok=True)
     recall = main(args)
-    #wandb.run.summary["best_recall_1"] = recall[0]
+    wandb.run.summary["best_recall_1"] = recall[0]
