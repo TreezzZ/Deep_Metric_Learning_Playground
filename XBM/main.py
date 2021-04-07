@@ -16,6 +16,7 @@ from criterion import MultiSimilarityLoss
 from dataset import get_dataloader
 from evaluation import calc_recall
 from model import get_model
+from model.xbm import XBM
 
 
 def main(args):
@@ -50,6 +51,7 @@ def main(args):
     model.train()
     model.to(args.device)
     wandb.watch(model)
+    xbm = XBM(args.xbm_size, args.embed_dim)
 
     # Get optimizer and learning rate scheduler
     optimizer = torch.optim.Adam(
@@ -92,7 +94,13 @@ def main(args):
                 embed = model(imgs)
                 if args.is_normalize:
                     embed = F.normalize(embed)
-                loss = criterion(embed, labels)
+                if epoch > 5:
+                    xbm.update(embed, labels)
+                    memory_embeddings, memory_labels = xbm.get()
+                    memory_embeddings, memory_labels = memory_embeddings.to(args.device), memory_labels.to(args.device)
+                else:
+                    memory_embeddings, memory_labels = embed, labels
+                loss = criterion(embed, labels, memory_embeddings, memory_labels)
             
             optimizer.zero_grad()
             scaler.scale(loss).backward()
@@ -160,6 +168,7 @@ if __name__ == '__main__':
     parser.add_argument('--test_batch_size', type=int, default=256)
     parser.add_argument('--img_per_class', type=int, default=2)
     parser.add_argument('--max_epochs', type=int, default=90)
+    parser.add_argument('--warmup_epochs', type=int, default=5)
     parser.add_argument('--embed_dim', type=int, required=True)
     parser.add_argument('--lr', type=float, required=True)
     parser.add_argument('--weight_decay', type=float, required=True)
@@ -167,6 +176,7 @@ if __name__ == '__main__':
     parser.add_argument('--beta', type=float, required=True)
     parser.add_argument('--lamda', type=float, required=True)
     parser.add_argument('--epsilon', type=float, required=True)
+    parser.add_argument('--xbm_size', type=int, default=1024)
 
     args = parser.parse_args()
     args.device = torch.device("cuda", args.gpu)

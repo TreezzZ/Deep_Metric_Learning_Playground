@@ -1,0 +1,19 @@
+python main.py \
+    --dataset cars196 \
+    --data_dir /dataset/cars196 \
+    --arch googlenet\
+    --batch_size 64 \
+    --test_batch_size 256 \
+    --img_per_class 4 \
+    --num_workers 6 \
+    --alpha 2.0 \
+    --beta 40.0 \
+    --lamda 0.5 \
+    --epsilon 0.1 \
+    --lr 1e-4 \
+    --weight_decay 5e-4\
+    --embed_dim 128 \
+    --max_epochs 100\
+    --xbm_size 2048 \
+    --is_normalize \
+    --gpu 0
