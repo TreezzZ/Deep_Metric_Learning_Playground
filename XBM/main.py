@@ -30,7 +30,7 @@ def main(args):
     torch.backends.cudnn.deterministic = True
 
     # Get logger
-    wandb.init(config=args, project="Multi-Similarity", dir=args.work_dir)
+    wandb.init(config=args, project="XBM", dir=args.work_dir)
     params = []
     for k, v in vars(args).items():
             params.append(f"{k}: {v}")
