@@ -94,13 +94,13 @@ def main(args):
                 embed = model(imgs)
                 if args.is_normalize:
                     embed = F.normalize(embed)
+                loss = criterion(embed, labels)
+
                 if epoch > args.warmup_epochs:
                     xbm.update(embed, labels)
                     memory_embeddings, memory_labels = xbm.get()
                     memory_embeddings, memory_labels = memory_embeddings.to(args.device), memory_labels.to(args.device)
-                else:
-                    memory_embeddings, memory_labels = embed, labels
-                loss = criterion(embed, labels, memory_embeddings, memory_labels)
+                    loss += criterion(embed, labels, memory_embeddings, memory_labels)
             
             optimizer.zero_grad()
             scaler.scale(loss).backward()

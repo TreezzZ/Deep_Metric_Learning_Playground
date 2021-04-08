@@ -10,7 +10,12 @@ class MultiSimilarityLoss(nn.Module):
         self.lamda = lamda
         self.epsilon = epsilon
     
-    def forward(self, x, y, mx, my):
+    def forward(self, x, y, mx=None, my=None):
+        # No XBM loss
+        if mx is None and my is None:
+            mx = x
+            my = y
+
         S = x @ mx.t()
 
         loss = []
