@@ -77,7 +77,7 @@ def main(args):
 
     best_recall = [0.] * 6
     # Start loop
-    running_loss = 0.
+    running_original_loss = running_xbm_loss = 0.
     cur_iter = 0
     start_time = time.time()
     for epoch in range(1, args.max_epochs+1):
@@ -95,23 +95,34 @@ def main(args):
                 if args.is_normalize:
                     embed = F.normalize(embed)
                 loss = criterion(embed, labels)
+                running_original_loss += loss.item()
 
                 if epoch > args.warmup_epochs:
                     xbm.update(embed, labels)
                     memory_embeddings, memory_labels = xbm.get()
                     memory_embeddings, memory_labels = memory_embeddings.to(args.device), memory_labels.to(args.device)
-                    loss += criterion(embed, labels, memory_embeddings, memory_labels)
+                    xbm_loss = criterion(embed, labels, memory_embeddings, memory_labels)
+                    running_xbm_loss += xbm_loss.item()
+                    loss += xbm_loss
             
             optimizer.zero_grad()
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
-            running_loss += loss.item()
 
             if cur_iter % args.log_step == 0:
-                logger.info("Epoch: {} Step: {} loss: {:.2f} time: {:.2f}".format(epoch, cur_iter, running_loss / args.log_step, time.time()-start_time))
-                wandb.log({'train_loss': running_loss / args.log_step})
-                running_loss = 0.
+                running_total_loss = (running_original_loss + running_xbm_loss) / args.log_step
+                running_original_loss /= args.log_step
+                running_xbm_loss /= args.log_step
+                logger.info("Epoch: {} Step: {} total_loss: {:.2f} original_loss: {:.2f} xbm_loss: {:.2f} time: {:.2f}".format(epoch, cur_iter, running_total_loss, running_original_loss, running_xbm_loss, time.time()-start_time))
+                wandb.log({
+                    'Loss/total': running_total_loss,
+                    'Loss/original': running_original_loss,
+                    'Loss/xbm': running_xbm_loss,
+                    'epoch': epoch,
+                    'iter': cur_iter
+                })
+                running_original_loss = running_xbm_loss = 0.
         scheduler.step()
     
         # Evaluation
@@ -144,7 +155,10 @@ def main(args):
                     recall_at_k = calc_recall(pred, gt, k)
                     recall.append(recall_at_k)
                     logger.info("R@{} : {:.3f}".format(k, 100 * recall_at_k))
-                    wandb.log({f'R@{k}': 100*recall_at_k})
+                    wandb.log({
+                        f'Metric/R@{k}': 100*recall_at_k, 
+                        'epoch': epoch
+                    })
                 if best_recall[0] < recall[0]:
                     best_recall = recall
     return best_recall

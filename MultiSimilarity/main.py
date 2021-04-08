@@ -102,7 +102,7 @@ def main(args):
 
             if cur_iter % args.log_step == 0:
                 logger.info("Epoch: {} Step: {} loss: {:.2f} time: {:.2f}".format(epoch, cur_iter, running_loss / args.log_step, time.time()-start_time))
-                wandb.log({'train_loss': running_loss / args.log_step})
+                wandb.log({'train_loss': running_loss / args.log_step, 'epoch': epoch, 'iter': cur_iter})
                 running_loss = 0.
         scheduler.step()
     
@@ -136,7 +136,7 @@ def main(args):
                     recall_at_k = calc_recall(pred, gt, k)
                     recall.append(recall_at_k)
                     logger.info("R@{} : {:.3f}".format(k, 100 * recall_at_k))
-                    wandb.log({f'R@{k}': 100*recall_at_k})
+                    wandb.log({f'R@{k}': 100*recall_at_k, 'epoch': epoch})
                 if best_recall[0] < recall[0]:
                     best_recall = recall
     return best_recall

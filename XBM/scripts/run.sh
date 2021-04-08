@@ -16,4 +16,5 @@ python main.py \
     --max_epochs 100\
     --xbm_size 2048 \
     --is_normalize \
+    --eval_step 10\
     --gpu 0
