@@ -11,6 +11,6 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/
 
-RUN pip install loguru wandb
+RUN pip install loguru wandb faiss-gpu pytorch_metric_learning
 
 WORKDIR /workspace
